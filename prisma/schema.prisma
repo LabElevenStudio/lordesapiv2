@@ -1,0 +1,74 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User{
+  id  Int  @id @default(autoincrement())
+  username String @db.VarChar(255) @unique
+  email String @db.VarChar(255) @unique
+  password String @db.VarChar(255) @unique
+  profile Profile?
+  role Role @default(USER) 
+  services ServiceType @default(INSHOP)
+  catalogue CatalogueItem[]
+  sentRequests Request[]
+  reqNotifications Int[]
+  reqNotificationCount Int @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Profile{
+  id Int @id @default(autoincrement())
+  bio String
+  profilePic String
+  user User @relation(fields: [userId], references: [id])
+  userId Int @unique
+  createdAt DateTime @default(now())
+}
+
+model Request{
+  id Int @id @default(autoincrement())
+  serviceType ServiceType
+  catItem CatalogueItem @relation(fields: [catItemId], references: [id])
+  catItemId Int @unique
+  sender User @relation(fields: [senderId], references: [id])
+  senderId Int @unique
+  status Status @default(ACCPETED)
+  createdAt DateTime @default(now())
+} 
+
+model CatalogueItem {
+  id Int @id @default(autoincrement())
+  itemName String
+  itemDesc String
+  itemCost Decimal
+  provider User @relation(fields: [providerId], references: [id])
+  providerId Int @unique
+  requests Request[]
+  }
+
+enum Role{
+  USER
+  STYLIST
+}
+
+enum Status{
+  REQUESTED
+  CANCELED
+  ACCPETED
+  FULFILLED
+}
+
+enum ServiceType{
+  HOME
+  INSHOP
+  BOTH
+}
