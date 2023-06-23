@@ -38,6 +38,7 @@
     "@babel/plugin-proposal-class-properties": "^7.18.6",
     "@babel/plugin-proposal-object-rest-spread": "^7.19.4",
     "@babel/preset-env": "^7.19.4",
+    "@flydotio/dockerfile": "^0.2.16",
     "babel-core": "^6.26.3",
     "babel-eslint": "^10.1.0",
     "babel-jest": "^29.1.2",
