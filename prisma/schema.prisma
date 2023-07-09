@@ -15,60 +15,68 @@ model User{
   username String @db.VarChar(255) @unique
   email String @db.VarChar(255) @unique
   password String @db.VarChar(255) @unique
-  profile Profile?
-  role Role @default(USER) 
-  services ServiceType @default(INSHOP)
-  catalogue CatalogueItem[]
-  sentRequests Request[]
-  reqNotifications Int[]
-  reqNotificationCount Int @default(0)
+  bio String?
+  location String?
+  role UserRole 
+  serviceRequests ServiceRequest[]
   createdAt DateTime @default(now())
 }
 
-model Profile{
-  id Int @id @default(autoincrement())
-  bio String
-  profilePic String
-  user User @relation(fields: [userId], references: [id])
-  userId Int @unique
+
+model Stylist{
+  id  Int  @id @default(autoincrement())
+  username String @db.VarChar(255) @unique
+  email String @db.VarChar(255) @unique
+  password String @db.VarChar(255) @unique
+  bio String?
+  location String?
+  catalogue Service[]
+  productCatalogue Product[]
+  role UserRole  
+  serviceRequests ServiceRequest[]
   createdAt DateTime @default(now())
 }
 
-model Request{
+model ServiceRequest{
   id Int @id @default(autoincrement())
-  serviceType ServiceType
-  catItem CatalogueItem @relation(fields: [catItemId], references: [id])
-  catItemId Int @unique
+  message String?
   sender User @relation(fields: [senderId], references: [id])
-  senderId Int @unique
-  status Status @default(ACCPETED)
+  senderId Int
+  receiver Stylist @relation(fields: [receiverId], references: [id])
+  receiverId Int
+  status ServiceRequestStatus
   createdAt DateTime @default(now())
 } 
 
-model CatalogueItem {
+model Service {
   id Int @id @default(autoincrement())
-  itemName String
-  itemDesc String
-  itemCost Decimal
-  provider User @relation(fields: [providerId], references: [id])
-  providerId Int @unique
-  requests Request[]
-  }
+  name String
+  price Float
+  owner Stylist @relation(fields: [ownerId], references: [id])
+  ownerId Int @unique
+  createdAt DateTime @default(now())
+}
 
-enum Role{
+
+model Product{
+  id Int @id @default(autoincrement())
+  name String
+  price Float
+  quantity Int
+  owner Stylist @relation(fields: [ownerId], references: [id])
+  ownerId Int @unique
+  createdAt DateTime @default(now())
+}
+  
+
+enum UserRole{
   USER
   STYLIST
 }
 
-enum Status{
+enum ServiceRequestStatus{
   REQUESTED
-  CANCELED
-  ACCPETED
-  FULFILLED
+  REJECTED
+  ACCEPTED
 }
 
-enum ServiceType{
-  HOME
-  INSHOP
-  BOTH
-}

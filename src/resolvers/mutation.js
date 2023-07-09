@@ -13,42 +13,41 @@ const isUser = async (context, Role) => {
         throw new GraphQLError("You have to be signed in.")
     }
 
-    const currentUser = await context.prisma.user.findUnique({
+    const user = await context.prisma.user.findUnique({
         where: {
             id: context.user.id
         }
     })
-    if(currentUser.role !== Role){
+    if(user.role !== Role){
         throw new GraphQLError("You can't take this action")
     }else{
-        return currentUser
+        return user
     }
 }
 
 const isStylist = async (context, Role) => {
-    if(!context.user) {
+    if(!context.stylist) {
         throw new GraphQLError("You have to be signed in.")
     }
 
-    const currentUser = await context.prisma.user.findUnique({
+    const stylist = await context.prisma.stylist.findUnique({
         where: {
-            id: context.user.id
+            id: context.stylist.id
         }
     })
-    if(currentUser.role !== Role){
+    if(stylist.role !== Role){
         throw new GraphQLError("You can't take this action")
     }else{
-        return currentUser
+        return stylist
     }
 }
 
 export default{
-    signUp: async(parent, {username, email, password, role}, context) => {
+    userSignUp: async(parent, {username, email, password}, context) => {
         var email = email.trim().toLowerCase();
         var saltRounds = 10;
         var encryptedPassword = await bcrypt.hash(password, saltRounds);
         
-        //add logic to check if username has already been used
         
         try{
             const user = await context.prisma.user.create({
@@ -56,17 +55,18 @@ export default{
                     username,
                     email,
                     password: encryptedPassword,
-                    role
+                    role: 'USER'
                 }
             })
-
+            
+            
             return jwt.sign({id: user.id}, process.env.JWT_SECRET)
         }catch(err){
             console.error(err)
             throw new Error('Error creating account')
         }
     },
-    signIn: async(parent, {username, email, password}, context) => {
+    userSignIn: async(parent, {username, email, password}, context) => {
         if(email) {
             var email = email.trim().toLowerCase();
         }
@@ -108,203 +108,263 @@ export default{
 
 
     },
-    createCatalogueItem: async(parent, {itemName, itemDesc, itemCost}, context) => {
-        isStylist(context, 'STYLIST')
-        console.log(context.user.id)
-        return await context.prisma.catalogueItem.create({
-            data: {
-                itemName,
-                itemDesc,
-                itemCost,
-                providerId: context.user.id
-            },
-            include: {
-                provider: true
+    stylistSignUp: async(parent, {username, email, password}, context) => {
+        var email = email.trim().toLowerCase();
+        var saltRounds = 10;
+        var encryptedPassword = await bcrypt.hash(password, saltRounds);
+        
+        
+        try{
+            const stylist = await context.prisma.stylist.create({
+                data: {
+                    username,
+                    email,
+                    password: encryptedPassword,
+                    role: 'STYLIST'
+                }
+            })
+            
+            
+            return jwt.sign({id: stylist.id}, process.env.JWT_SECRET)
+        }catch(err){
+            console.error(err)
+            throw new Error('Error creating account')
+        }
+    },
+    stylistSignIn: async(parent, {username, email, password}, context) => {
+        if(email) {
+            var email = email.trim().toLowerCase();
+        }
+
+        const findStylist = await context.prisma.stylist.findMany({
+            where: {
+                OR:[
+                    {
+                    email: {
+                         contains: email
+                    }
+                }, {
+                        username: {
+                            contains: username
+                    }}
+                ]
             }
         })
-    },
-    sendRequest: async(parent, {providerId, reqStatus, service, serviceOption}, context) => { 
-        isUser(context, 'USER')
+        
+        
 
-        const serviceOpt = parseInt(serviceOption)
+        if(!findStylist) {
+            throw new GraphQLError('Error signing in');
+        }
+
+        const hashPassword = findStylist.map(stylist => stylist.password)
+        
+        const stylistId = findStylist.map(stylist => stylist.id)
+
+        const match = await bcrypt.compare(password, ...hashPassword)
+        
+        if(!match){
+            throw new GraphQLError("Error Signing in")
+        }
+
+        return await jwt.sign({id: stylistId[0]}, process.env.JWT_SECRET)
+
+
+    },
+    createService: async(parent, {name, price}, context) => {
+        isStylist(context, 'STYLIST')
+        
+        const service = await context.prisma.service.create({
+            data: {
+                name,
+                price,
+                owner: {
+                    connect: {
+                        id: context.stylist.id
+                    }
+                }
+            }
+        })
+        
+        return service;
+    },
+    sendServiceRequest: async(parent, {stylistId, message}, context) => { 
+        isUser(context, 'USER')
+        
+        const stylist = await context.prisma.stylist.findUnique({
+            where: {
+                id: parseInt(stylistId)
+            }
+        })
+        
+        
+        if(!stylist){
+            throw new GraphQLError("stylist not found.")
+        }
+
+       
         //create a new request
-         const newRequest =  await context.prisma.request.create({
+         const serviceRequest =  await context.prisma.serviceRequest.create({
              data: {
-                 serviceType: service,
-                 catItemId: serviceOpt,
-                 senderId: context.user.id,
-                 status: reqStatus
-             },
-             include: {
-                 sender: true
+                 message,
+                 sender:{
+                    connect: {
+                        id: context.user.id
+                    }
+                 },
+                 receiver: {
+                    connect:{
+                        id: parseInt(stylistId)
+                    }
+                 },
+                 status: 'REQUESTED'
              }
         })
 
-        //send request to provider
-        await context.prisma.user.update({
-            where: {
-                id: parseInt(providerId)
-            },
-            data: {
-                reqNotifications: {
-                    push: [newRequest.id]
-                },
-                reqNotificationCount: {
-                    increment: 1
-                }
-            }
-        })
+        return serviceRequest;     
+    },
 
-        return newRequest
+    updateSerivceRequestStatus: async(parent, {requestId, status}, context) => {
+        isStylist(context, 'STYLIST')
+    
+    
         
-    },
-    deleteCatalogueItem: async(parent, {itemId}, context) => {
-        isStylist(context, 'STYLIST')
-
-        let item = await context.prisma.catalogueItem.findUnique({ where: {id: parseInt(itemId)}})
-        if(item.providerId !== context.user.id){
-            throw new GraphQLError("You don't have permissions to delete this.")
-        }
-
-        try{
-            await context.prisma.catalogueItem.delete({where: {id: parseInt(itemId)}})
-            return true
-        }catch(err) {
-            console.error(err)
-            return false
-        }
-    },
-    cancelRequest: async(parent, {requestId}, context) => {
-        isStylist(context, 'STYLIST')
-        //find request with id
-        const request = await context.prisma.request.findUnique({where: {id: parseInt(requestId)}})
-
-        if(request.senderId !== context.user.id) throw new GraphQLError('You don\'t have permission to delete this request')
-        //get service provider of the request
-        const catItem = await context.prisma.catalogueItem.findUnique({where: {id: request.catItem}})
-
-        const serviceProvider = await context.prisma.user.findUnique({
+        const serviceRequest = await context.prisma.serviceRequest.findUnique({
             where: {
-                id: catItem.provider,
-                reqNotifications: {
-                    has: parseInt(requestId)
-                }
+                id: parseInt(requestId)   
+            },
+            select:{
+                receiver: true
             }
         })
-
-        if(serviceProvider && request.status !== ACCPETED){
-            await context.prisma.user.update({
-                where:{
-                    id: catItem.providerId
-                },
-                data: {
-                    reqNotifications: {
-                        increment: -1
-                    }
-                }
-            })
-        }
-        try{
-            await context.prisma.request.delete({where: {id: parseInt(requestId)}})
-            return true
-        }catch(err) {
-            console.log(err)
-            return false
-        }
-    },
-    acceptRequest: async(parent, {requestId}, context) => {
-        isUser(context, 'USER')
 
         //check if current user has the request in their notifications
-        let isInRequest = await context.prisma.user.findUnique({
-            where: {
-                id: context.user.id,
-                reqNotifications: {
-                    has: parseInt(requestId)
-                }
-            }
-        })
+       if(!serviceRequest || serviceRequest.receiver.id !== context.stylist.id){
+        throw new GraphQLError("service request not found")
+       }
 
-        if(isInRequest){
-            return await context.prisma.request.update({
-                where: {
-                    id: parseInt(requestId)
-                },
-                data: {
-                    status: ACCEPTED
-                }
-            })
-        }
+       const updatedServiceRequest = await context.prisma.serviceRequest.update({
+            where: {
+                id: parseInt(requestId)
+            },
+            data: {
+                status
+            }
+       })
+       
+       
+       return updatedServiceRequest
     },
-    updateCatalogueItem: async(parent, {itemId, cost}, context) => {
+    updateService: async(parent, {id, name ,price}, context) => {
         isStylist(context, 'STYLIST')
         
         // const stylist = isStylist(context, 'STYLIST')
         
-        const item = await context.prisma.catalogueItem.findUnique({
+        const service = await context.prisma.service.findUnique({
             where: {
-                id: itemId
+                id: parseInt(id)
+            },
+            select:{
+                owner: true
             }
         })
 
-        if(item && item.provider !== context.user.id){
-            throw new GraphQLError('You don\'t have permissions to update this service.')
+        if(!service || service.owner.id !== context.stylist.id){
+            throw new GraphQLError('Service not found')
         }
         
-        return await context.prisma.catalogueItem.update({
+        const updatedService = await context.prisma.service.update({
             where:{
-                id: parseInt(itemId)
+                id: parseInt(id)
             },
             data: {
-                itemCost: cost
+                name,
+                price
             }
         })
+        
+        
+        return updatedService
     },
-    createProfile: async(parent, {bio, profilePic, userId}, context) => {
-        if(!context.user) {
-            throw new GraphQLError("You have to be signed in.")
-        }
+    updateUserProfile: async(parent, {bio, location}, context) => {
+        isUser(context, 'USER')
 
-
-        if(userId !== String(context.user.id)){
-            throw new GraphQLError("You don't have permission")
-        }
-        try{
-            const profile =  await context.prisma.profile.create({
-                data: {
-                    bio,
-                    profilePic,
-                    userId: parseInt(userId)
-                },
-                include: {
-                    user: true
-                }
-            })
-            return profile
-        }catch(err) {
-            console.log('couldn\'t create profile')
-            console.error(err)
-            throw new Error(err)
-        }
+        const updatedUserProfile = await context.prisma.user.update({
+            where: {
+                id: context.user.id
+            },
+            data:{
+                bio,
+                location
+            }
+        })
+        
+        
+        return updatedUserProfile 
         
     },
-    updateProfile: async(parent, {bio, profilePic, userId}, context) => {
-        if(!context.user) {
-            throw new GraphQLError("You have to be signed in.")
-        }
+    updateStylistProfile: async(parent, {bio, location}, context) => {
+       isStylist(context, 'STYLIST')
+       
 
-        if(parseInt(userId) !== context.user.id){
-            throw new GraphQLError("You don't have permission")
-        }
-
-        return await context.prisma.profile.update({
+        const updatedStylistProfile = await context.prisma.stylist.update({
             where: {
-                user: parseInt(userId)
+                id: context.stylist.id
             },
             data: {
                 bio,
-                profilePic
+                location
             }
         })
+        
+        return updatedStylistProfile;
+    },
+    createProduct: async(parent, {name, price, quantity}, context) => {
+        isStylist(context, 'STYLIST')
+        
+        const product = context.prisma.product.create({
+            data: {
+                name,
+                price,
+                quantity,
+                owner: {
+                    connect: {
+                        id: context.stylist.id
+                    }
+                }
+            }
+        })
+        
+        return product
+    },
+    updateProduct: async(parent, {id, name, price, quantity}, context) => {
+        isStylist(context, 'STYLIST')
+        
+        const product = context.prisma.product.findUnique({
+            where: {
+                id: parseInt(id)
+            },
+            select: {
+                owner: true
+            }
+        })
+        
+        if(!product || product.owner.id !== context.stylist.id){
+            throw new GraphQLError('product not found')
+        }
+        
+        
+        const updatedProduct = context.prisma.product.update({
+            where: {
+                id: parseInt(id)
+            },
+            data: {
+                name,
+                price,
+                quantity
+            }
+        })
+        
+        return updatedProduct
     }
 }

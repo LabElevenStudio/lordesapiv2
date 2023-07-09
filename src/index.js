@@ -26,6 +26,17 @@ function getUser(token) {
 }
 
 
+function getStylist(token){
+    if(token){
+        try{
+            return jwt.verify(token, process.env.JWT_SECRET)
+        }catch(error){
+            throw new Error('Session Invalid')
+        }
+    }
+}
+
+
 const graphQLServer = createServer({
     schema:{
         typeDefs: typeDefs,
@@ -34,7 +45,8 @@ const graphQLServer = createServer({
     context({req}) {
         const token = req.headers.authorization
         const user = getUser(token)
-        return{prisma, user}
+        const stylist = getStylist(token)
+        return{prisma, user, stylist}
     }
 })
 
@@ -43,8 +55,8 @@ app.use(cors())
 app.use('/graphql', graphQLServer)
 
 
-app.listen(4000, () => {
-    console.log("🚀 GraphQL API server running at http://localhost:4000/graphql")
+app.listen(3000, () => {
+    console.log("🚀 GraphQL API server running at http://localhost:3000/graphql")
 })
 
 

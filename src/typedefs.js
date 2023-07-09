@@ -1,89 +1,112 @@
 
  const typeDefs = `
      scalar DateTime
+     
+    interface Profile{
+        id: ID!
+        bio: String
+        location: String
+     }
 
-     type User{
+     type User implements Profile{
          id: ID!
          username: String!
          email: String!
          password: String!
-         profile: Profile
-         role: Role!
-         services: ServiceType!
-         catalogue: [CatalogueItem]!
-         sentRequests: [Request!]
-         reqNotifications: [Int!]
-         reqNotificationCount: Int!
-         createdAt: DateTime!
-         updatedAt: DateTime!
-     }
-
-     type Profile{
-         id: ID!
          bio: String
-         profilePic: String
-         user: User!
-         createdAt: DateTime!
-     }
-
-     type CatalogueItem{
-         id: ID!
-         itemName: String!
-         itemDesc: String!
-         itemCost: String!
-         provider: User!
-         requests: [Request]
-         createdAt: DateTime!
-     }
-
-     type Request{
-         id: ID!
-         servicetype: ServiceType!
-         catItem: CatalogueItem!
-         sender: User!
-         status: Status
+         location: String
+         serviceRequests: [ServiceRequest]
+         role: UserRole!
          createdAt: DateTime!
          updatedAt: DateTime!
      }
+     
+     type Stylist implements Profile{
+        id: ID!
+        username: String!
+        email: String!
+        password: String!
+        bio: String
+        location: String
+        catalogue: [Service]
+        productCatalogue: [Product]
+        serviceRequests: [ServiceRequest]
+        role: UserRole!
+        createdAt: DateTime!
+        updatedAt: DateTime!
+     }
 
-     enum Role{
+
+     type Service{
+         id: ID!
+         name: String!
+         price: Float!
+         owner: Stylist!
+         createdAt: DateTime!
+     }
+
+     type ServiceRequest{
+         id: ID!
+         message: String
+         sender: User!
+         receiver: Stylist!
+         status: ServiceRequestStatus!
+         createdAt: DateTime!
+         updatedAt: DateTime!
+     }
+     
+     type Product{
+        id: ID!
+        name: String!
+        price: Float!
+        owner: Stylist!
+        quantity: Int!
+        createdAt: DateTime!
+     }
+     
+     
+
+     enum UserRole{
          USER
          STYLIST
      }
 
-     enum Status{
+     enum ServiceRequestStatus{
          REQUESTED
+         REJECTED
          ACCEPTED
-         CANCELED
-         FULFILLED
      }
-
-     enum ServiceType{
-         HOME
-         INSHOP
-         BOTH
-     }
+     
+     
+     
 
      type Query{
-         sentRequests: [Request!]!
-         acceptedRequests: [Request!]!
-         getStylists(role: Role!, service: ServiceType): [User!]!
-         users: [User!]!
-         user(username: String!): User!
-         me: User!
+        products: [Product!]
+        product(name: String!): Product!
+        sentServiceRequests: [ServiceRequest!]
+        recievedServiceRequests: [ServiceRequest!]
+        acceptedServiceRequests: [ServiceRequest!]
+        stylists: [Stylist!]!
+        stylist(username: String!): Stylist!
+        users: [User!]!
+        user(username: String!): User!
+        userSelf: User!
+        stylistSelf: Stylist!
      }
 
      type Mutation{
-         createProfile(bio: String, profilePic: String, userId: ID!): Profile!
-         updateProfile(bio: String, profilePic: String, userId: ID!): Profile!
-         createCatalogueItem(itemName: String!, itemDesc: String!, itemCost: Float!): CatalogueItem!
-         updateCatalogueItem(itemId: ID!, cost: Float!): CatalogueItem!
-         sendRequest(providerId: ID!, reqStatus: Status!, service: ServiceType!, serviceOption: ID!): Request!
-         cancelRequest(requestId: ID!): Boolean!
-         deleteCatalogueItem(itemId: ID!): Boolean!
-         acceptRequest(requestId: ID!): Request!
-         signUp(username: String!, email: String!, password: String!, role: Role!): String!
-         signIn(username: String, email: String, password: String!): String!
+         createProduct(name: String!, price: Float!, quantity: Int!): Product!
+         updateProduct(id: ID!, name: String, price: Float, quantity: Int): Product
+         updateStylistProfile(bio: String, location: String): Stylist!
+         updateUserProfile(bio: String, location: String): User!
+         createService(name: String!, price: Float!): Service!
+         updateService(id: ID!, name: String, price: Float): Service!
+         sendServiceRequest(stylistId: ID!, message: String): ServiceRequest!
+         updateSerivceRequestStatus(requestId: ID!, status: ServiceRequestStatus!): ServiceRequest!
+         userSignUp(username: String!, email: String!, password: String!): String!
+         userSignIn(username: String, email: String, password: String!): String!
+         stylistSignUp(username: String!, email: String!, password: String!): String!
+         stylistSignIn(username: String, email: String, password: String!): String!
      }
  `
 

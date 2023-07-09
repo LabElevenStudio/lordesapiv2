@@ -1,47 +1,49 @@
 
 
 export default {
-    sentRequests: async(parent, args, context) => {
-        return await context.prisma.request.findMany({
+    products: async(parent, args, context) => {
+        return await context.prisma.product.findMany({})
+    },
+    product: async(parent, {name}, context) => {
+        return await context.prisma.product.findUnique({
             where: {
+                name
+            }
+        })
+    },
+    sentServiceRequests: async(parent, args, context) => {
+        return await context.prisma.serviceRequest.findMany({
+            where: {
+                status: 'REQUESTED',
                 senderId: context.user.id
             }
         })
     },
-    acceptedRequests: async(parent, args, context) => {
-        return await context.prisma.request.findMany({
+    recievedServiceRequests: async(parent, args, context) => {
+        return await context.prisma.serviceRequest.findMany({
             where: {
-                status: ACCEPTED,
-                catItem: {
-                    has: {
-                        providerId: context.user.id
-                    }
-                }
+                status: 'REQUESTED',
+                receiverId: context.stylist.id
             }
         })
     },
-    getStylists: async(parent, {role, service}, context) => {
-        if(role === STYLIST && (service === HOME || service === BOTH)) {
-            return await context.prisma.user.findMany({
-                where: {
-                    role: 'STYLIST',
-                    services: 'HOME'
-                }
-            })
-        }else if(role === STYLIST && (service === INSHOP || service === BOTH)){
-            return await context.prisma.user.findMany({
-                where: {
-                    role: 'STYLIST',
-                    services: 'INSHOP'
-                }
-            })
-        }else{
-            return await context.prisma.user.findMany({
-                where: {
-                    role: 'STYLIST'
-                }
-            })
-        }
+    acceptedServiceRequests: async(parent, args, context) => {
+        return await context.prisma.serviceRequest.findMany({
+            where: {
+                status: 'ACCEPTED',
+                receiverId: context.stylist.id
+            }
+        })
+    },
+    stylists: async(parent, args, context) => {
+        return await context.prisma.stylist.findMany({})
+    },
+    stylist: async(parent, {username}, context) => {
+        return await context.prisma.stylist.findUnique({
+            where: {
+                username: username,
+            }
+        })
     },
     users: async(parent, args, context) => {
         return await context.prisma.user.findMany({})
@@ -54,7 +56,15 @@ export default {
         })
     },
 
-    me: async(parent, args, context) => {
+    userSelf: async(parent, args, context) => {
         return await context.prisma.user.findUnique({where: {id: context.user.id}})
+    },
+    
+    stylistSelf: async(parent, args, context) => {
+        return await context.prisma.stylist.findUnique({
+                where: {
+                    id: context.stylist.id
+            }
+        })
     }
 }
