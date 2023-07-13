@@ -95,8 +95,7 @@ export default{
         const hashPassword = findUser.map(user => user.password)
         
         const userId = findUser.map(user => user.id)
-        // console.log('userid', userId[0])
-        // console.log('password',...hashPassword)
+        
 
         const match = await bcrypt.compare(password, ...hashPassword)
         
@@ -104,7 +103,7 @@ export default{
             throw new GraphQLError("Error Signing in")
         }
 
-        return await jwt.sign({id: userId[0]}, process.env.JWT_SECRET)
+        return jwt.sign({id: userId[0]}, process.env.JWT_SECRET)
 
 
     },
@@ -167,7 +166,7 @@ export default{
             throw new GraphQLError("Error Signing in")
         }
 
-        return await jwt.sign({id: stylistId[0]}, process.env.JWT_SECRET)
+        return jwt.sign({id: stylistId[0]}, process.env.JWT_SECRET)
 
 
     },
