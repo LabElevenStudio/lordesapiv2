@@ -16,6 +16,9 @@ const isUser = async (context, Role) => {
     const user = await context.prisma.user.findUnique({
         where: {
             id: context.user.id
+        },
+        select: {
+            role: true
         }
     })
     if(user.role !== Role){
@@ -26,13 +29,16 @@ const isUser = async (context, Role) => {
 }
 
 const isStylist = async (context, Role) => {
-    if(!context.stylist) {
+    if(!context.user) {
         throw new GraphQLError("You have to be signed in.")
     }
 
-    const stylist = await context.prisma.stylist.findUnique({
+    const stylist = await context.prisma.user.findUnique({
         where: {
-            id: context.stylist.id
+            id: context.user.id
+        },
+        select: {
+            role: true
         }
     })
     if(stylist.role !== Role){
@@ -43,30 +49,44 @@ const isStylist = async (context, Role) => {
 }
 
 export default{
-    userSignUp: async(parent, {username, email, password}, context) => {
+    signUp: async(parent, {username, email, password, role}, context) => {
         var email = email.trim().toLowerCase();
         var saltRounds = 10;
         var encryptedPassword = await bcrypt.hash(password, saltRounds);
         
         
         try{
-            const user = await context.prisma.user.create({
-                data: {
-                    username,
-                    email,
-                    password: encryptedPassword,
-                    role: 'USER'
-                }
-            })
+            if(role === 'user'){
+                    const user = await context.prisma.user.create({
+                    data: {
+                        username,
+                        email,
+                        password: encryptedPassword,
+                        role: 'USER'
+                    }
+                })
+                    
+                    return jwt.sign({id: user.id}, process.env.JWT_SECRET)
+            }else if(role === 'stylist'){
+                    const user = await context.prisma.user.create({
+                    data: {
+                        username,
+                        email,
+                        password: encryptedPassword,
+                        role: 'STYLIST'
+                    }
+                })
+                    
+                    return jwt.sign({id: user.id}, process.env.JWT_SECRET)
+            }
+              
             
-            
-            return jwt.sign({id: user.id}, process.env.JWT_SECRET)
         }catch(err){
             console.error(err)
             throw new Error('Error creating account')
         }
     },
-    userSignIn: async(parent, {username, email, password}, context) => {
+    signIn: async (parent, {username, email, password}, context) => {
         if(email) {
             var email = email.trim().toLowerCase();
         }
@@ -97,76 +117,18 @@ export default{
         const userId = findUser.map(user => user.id)
         
 
-        const match = await bcrypt.compare(password, ...hashPassword)
+        const matches = await Promise.all(
+            hashPassword.map(async hash => {
+                return bcrypt.compare(password, hash)
+            }))
+        
+        const match = matches.includes(true)
         
         if(!match){
             throw new GraphQLError("Error Signing in")
         }
 
         return jwt.sign({id: userId[0]}, process.env.JWT_SECRET)
-
-
-    },
-    stylistSignUp: async(parent, {username, email, password}, context) => {
-        var email = email.trim().toLowerCase();
-        var saltRounds = 10;
-        var encryptedPassword = await bcrypt.hash(password, saltRounds);
-        
-        
-        try{
-            const stylist = await context.prisma.stylist.create({
-                data: {
-                    username,
-                    email,
-                    password: encryptedPassword,
-                    role: 'STYLIST'
-                }
-            })
-            
-            
-            return jwt.sign({id: stylist.id}, process.env.JWT_SECRET)
-        }catch(err){
-            console.error(err)
-            throw new Error('Error creating account')
-        }
-    },
-    stylistSignIn: async(parent, {username, email, password}, context) => {
-        if(email) {
-            var email = email.trim().toLowerCase();
-        }
-
-        const findStylist = await context.prisma.stylist.findMany({
-            where: {
-                OR:[
-                    {
-                    email: {
-                         contains: email
-                    }
-                }, {
-                        username: {
-                            contains: username
-                    }}
-                ]
-            }
-        })
-        
-        
-
-        if(!findStylist) {
-            throw new GraphQLError('Error signing in');
-        }
-
-        const hashPassword = findStylist.map(stylist => stylist.password)
-        
-        const stylistId = findStylist.map(stylist => stylist.id)
-
-        const match = await bcrypt.compare(password, ...hashPassword)
-        
-        if(!match){
-            throw new GraphQLError("Error Signing in")
-        }
-
-        return jwt.sign({id: stylistId[0]}, process.env.JWT_SECRET)
 
 
     },
@@ -179,80 +141,13 @@ export default{
                 price,
                 owner: {
                     connect: {
-                        id: context.stylist.id
+                        id: context.user.id
                     }
                 }
             }
         })
         
         return service;
-    },
-    sendServiceRequest: async(parent, {stylistId, message}, context) => { 
-        isUser(context, 'USER')
-        
-        const stylist = await context.prisma.stylist.findUnique({
-            where: {
-                id: parseInt(stylistId)
-            }
-        })
-        
-        
-        if(!stylist){
-            throw new GraphQLError("stylist not found.")
-        }
-
-       
-        //create a new request
-         const serviceRequest =  await context.prisma.serviceRequest.create({
-             data: {
-                 message,
-                 sender:{
-                    connect: {
-                        id: context.user.id
-                    }
-                 },
-                 receiver: {
-                    connect:{
-                        id: parseInt(stylistId)
-                    }
-                 },
-                 status: 'REQUESTED'
-             }
-        })
-
-        return serviceRequest;     
-    },
-
-    updateSerivceRequestStatus: async(parent, {requestId, status}, context) => {
-        isStylist(context, 'STYLIST')
-    
-    
-        
-        const serviceRequest = await context.prisma.serviceRequest.findUnique({
-            where: {
-                id: parseInt(requestId)   
-            },
-            select:{
-                receiver: true
-            }
-        })
-
-        //check if current user has the request in their notifications
-       if(!serviceRequest || serviceRequest.receiver.id !== context.stylist.id){
-        throw new GraphQLError("service request not found")
-       }
-
-       const updatedServiceRequest = await context.prisma.serviceRequest.update({
-            where: {
-                id: parseInt(requestId)
-            },
-            data: {
-                status
-            }
-       })
-       
-       
-       return updatedServiceRequest
     },
     updateService: async(parent, {id, name ,price}, context) => {
         isStylist(context, 'STYLIST')
@@ -268,7 +163,7 @@ export default{
             }
         })
 
-        if(!service || service.owner.id !== context.stylist.id){
+        if(!service || service.owner.id !== context.user.id){
             throw new GraphQLError('Service not found')
         }
         
@@ -285,7 +180,7 @@ export default{
         
         return updatedService
     },
-    updateUserProfile: async(parent, {bio, location}, context) => {
+    updateProfile: async(parent, {bio, location}, context) => {
         isUser(context, 'USER')
 
         const updatedUserProfile = await context.prisma.user.update({
@@ -302,33 +197,17 @@ export default{
         return updatedUserProfile 
         
     },
-    updateStylistProfile: async(parent, {bio, location}, context) => {
-       isStylist(context, 'STYLIST')
-       
-
-        const updatedStylistProfile = await context.prisma.stylist.update({
-            where: {
-                id: context.stylist.id
-            },
-            data: {
-                bio,
-                location
-            }
-        })
-        
-        return updatedStylistProfile;
-    },
     createProduct: async(parent, {name, price, quantity}, context) => {
         isStylist(context, 'STYLIST')
         
-        const product = context.prisma.product.create({
+        const product = await context.prisma.product.create({
             data: {
                 name,
                 price,
                 quantity,
                 owner: {
                     connect: {
-                        id: context.stylist.id
+                        id: context.user.id
                     }
                 }
             }
@@ -339,7 +218,7 @@ export default{
     updateProduct: async(parent, {id, name, price, quantity}, context) => {
         isStylist(context, 'STYLIST')
         
-        const product = context.prisma.product.findUnique({
+        const product = await context.prisma.product.findUnique({
             where: {
                 id: parseInt(id)
             },
@@ -348,7 +227,7 @@ export default{
             }
         })
         
-        if(!product || product.owner.id !== context.stylist.id){
+        if(!product || product.owner.id !== context.user.id){
             throw new GraphQLError('product not found')
         }
         

@@ -26,16 +26,6 @@ function getUser(token) {
 }
 
 
-function getStylist(token){
-    if(token){
-        try{
-            return jwt.verify(token, process.env.JWT_SECRET)
-        }catch(error){
-            throw new Error('Session Invalid')
-        }
-    }
-}
-
 
 const graphQLServer = createServer({
     schema:{
@@ -45,8 +35,7 @@ const graphQLServer = createServer({
     context({req}) {
         const token = req.headers.authorization
         const user = getUser(token)
-        const stylist = getStylist(token)
-        return{prisma, user, stylist}
+        return{prisma, user}
     }
 })
 

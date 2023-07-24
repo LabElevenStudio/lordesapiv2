@@ -15,25 +15,11 @@
          password: String!
          bio: String
          location: String
-         serviceRequests: [ServiceRequest]
+         catalogue: [Service]
+         productCatalogue: [Product]
          role: UserRole!
          createdAt: DateTime!
          updatedAt: DateTime!
-     }
-     
-     type Stylist implements Profile{
-        id: ID!
-        username: String!
-        email: String!
-        password: String!
-        bio: String
-        location: String
-        catalogue: [Service]
-        productCatalogue: [Product]
-        serviceRequests: [ServiceRequest]
-        role: UserRole!
-        createdAt: DateTime!
-        updatedAt: DateTime!
      }
 
 
@@ -41,26 +27,16 @@
          id: ID!
          name: String!
          price: Float!
-         owner: Stylist!
+         owner: User!
          createdAt: DateTime!
-     }
-
-     type ServiceRequest{
-         id: ID!
-         message: String
-         sender: User!
-         receiver: Stylist!
-         status: ServiceRequestStatus!
-         createdAt: DateTime!
-         updatedAt: DateTime!
      }
      
      type Product{
         id: ID!
         name: String!
         price: Float!
-        owner: Stylist!
         quantity: Int!
+        owner: User!
         createdAt: DateTime!
      }
      
@@ -71,42 +47,27 @@
          STYLIST
      }
 
-     enum ServiceRequestStatus{
-         REQUESTED
-         REJECTED
-         ACCEPTED
-     }
-     
      
      
 
      type Query{
         products: [Product!]
-        product(name: String!): Product!
-        sentServiceRequests: [ServiceRequest!]
-        recievedServiceRequests: [ServiceRequest!]
-        acceptedServiceRequests: [ServiceRequest!]
-        stylists: [Stylist!]!
-        stylist(username: String!): Stylist!
+        product(id: ID!): Product!
+        services: [Service!]
+        service(id: ID!): Service!
         users: [User!]!
         user(username: String!): User!
-        userSelf: User!
-        stylistSelf: Stylist!
+        me: User!
      }
 
      type Mutation{
-         createProduct(name: String!, price: Float!, quantity: Int!): Product!
-         updateProduct(id: ID!, name: String, price: Float, quantity: Int): Product
-         updateStylistProfile(bio: String, location: String): Stylist!
-         updateUserProfile(bio: String, location: String): User!
+         signUp(username: String!, email: String!, password: String!, role: String!): String!
+         signIn(username: String, email: String, password: String!): String!
          createService(name: String!, price: Float!): Service!
          updateService(id: ID!, name: String, price: Float): Service!
-         sendServiceRequest(stylistId: ID!, message: String): ServiceRequest!
-         updateSerivceRequestStatus(requestId: ID!, status: ServiceRequestStatus!): ServiceRequest!
-         userSignUp(username: String!, email: String!, password: String!): String!
-         userSignIn(username: String, email: String, password: String!): String!
-         stylistSignUp(username: String!, email: String!, password: String!): String!
-         stylistSignIn(username: String, email: String, password: String!): String!
+         updateProfile(bio: String, location: String): User!
+         createProduct(name: String!, price: Float!, quantity: Int!): Product!
+         updateProduct(id: ID!, name: String, price: Float, quantity: Int): Product!
      }
  `
 

@@ -1,9 +1,16 @@
 export default{
-    serviceRequests: async(user, args, context) => {
-        return await context.prisma.serviceRequests.findMany({
-            where: {
-                senderId: user.id
-            }
-        })
+    catalogue: async (user, args, context) => {
+    	return await context.prisma.service.findMany({
+    		where: {
+    			ownerId: user.id
+    		}
+    	})
+    },
+    productCatalogue: async (user, args, context) => {
+    	return await context.prisma.product.findMany({
+    		where: {
+    			ownerId: user.id
+    		}
+    	})
     }
 }

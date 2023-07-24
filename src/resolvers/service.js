@@ -2,9 +2,9 @@
 
 export default {
     owner: async(service, args, context) => {
-        return await context.prisma.stylist.findUnique({
+        return await context.prisma.user.findUnique({
             where: {
-                id: service.ownerId || null
+                id: service.ownerId
             }
         })
     }
