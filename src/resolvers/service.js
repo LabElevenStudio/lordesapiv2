@@ -7,5 +7,12 @@ export default {
                 id: service.ownerId
             }
         })
+    },
+    photos: async(service, args, context) =>{
+        return await context.prisma.serviceImage.findMany({
+            where: {
+                serviceId: service.id
+            }
+        })
     }
 }

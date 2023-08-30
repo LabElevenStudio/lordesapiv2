@@ -10,42 +10,105 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User{
-  id  Int  @id @default(autoincrement())
-  username String @db.VarChar(255) @unique
-  email String @db.VarChar(255) @unique
-  password String @db.VarChar(255) @unique
-  bio String?
-  location String?
-  catalogue Service[]
-  productCatalogue Product[]
-  role UserRole 
-  createdAt DateTime @default(now())
+model User {
+  id                    Int                   @id @default(autoincrement())
+  username              String                @unique @db.VarChar(255)
+  email                 String                @unique @db.VarChar(255)
+  password              String                @unique @db.VarChar(255)
+  profileImage          ProfileImage?
+  bio                   String?
+  location              String?
+  catalogue             Service[]
+  catalogueCount        Int                   @default(0)
+  productCatalogue      Product[]
+  sentNotifications     ServiceNotification[] @relation("Sender")
+  receivedNotifications ServiceNotification[] @relation("Receiver")
+  chats                 Chat[]
+  role                  UserRole
+  createdAt             DateTime              @default(now())
+  Messages               Message[]
 }
-
 
 model Service {
-  id Int @id @default(autoincrement())
-  name String
-  price Float
-  owner User @relation(fields: [ownerId], references: [id])
-  ownerId Int
-  createdAt DateTime @default(now())
+  id        Int            @id @default(autoincrement())
+  photos    ServiceImage[]
+  name      String
+  price     Float
+  owner     User           @relation(fields: [ownerId], references: [id])
+  ownerId   Int
+  createdAt DateTime       @default(now())
 }
 
-
-model Product{
-  id Int @id @default(autoincrement())
-  name String
-  price Float
-  quantity Int
-  owner User @relation(fields: [ownerId], references: [id])
-  ownerId Int
-  createdAt DateTime @default(now())
+model ServiceImage {
+  id        Int     @id @default(autoincrement())
+  filename  String
+  mimetype  String
+  encoding  String
+  url       String
+  service   Service @relation(fields: [serviceId], references: [id])
+  serviceId Int
 }
-  
 
-enum UserRole{
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  filename  String
+  mimetype  String
+  encoding  String
+  url       String
+  product   Product @relation(fields: [productId], references: [id])
+  productId Int
+}
+
+model ProfileImage {
+  id       Int    @id @default(autoincrement())
+  filename String
+  mimetype String
+  encoding String
+  url      String
+  owner    User   @relation(fields: [ownerId], references: [id])
+  ownerId  Int    @unique
+}
+
+model Product {
+  id        Int            @id @default(autoincrement())
+  photos    ProductImage[]
+  name      String
+  price     Float
+  quantity  Int
+  owner     User           @relation(fields: [ownerId], references: [id])
+  ownerId   Int
+  createdAt DateTime       @default(now())
+}
+
+model Chat {
+  id           Int       @id @default(autoincrement())
+  participants User[]
+  messages     Message[]
+  createdAt    DateTime  @default(now())
+}
+
+model Message {
+  id       Int      @id @default(autoincrement())
+  content  String
+  sender   User     @relation(fields: [senderId], references: [id])
+  senderId Int
+  chat     Chat     @relation(fields: [chatId], references: [id])
+  chatId   Int
+  sentAt   DateTime @default(now())
+}
+
+model ServiceNotification {
+  id         Int      @id @default(autoincrement())
+  message    String
+  sender     User     @relation("Sender", fields: [senderId], references: [id])
+  senderId   Int
+  receiver   User     @relation("Receiver", fields: [receiverId], references: [id])
+  receiverId Int
+  createdAt  DateTime @default(now())
+}
+
+enum UserRole {
   USER
   STYLIST
+  MERCHANT
 }

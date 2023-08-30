@@ -5,5 +5,12 @@ export default {
 				id: product.ownerId
 			}
 		})
+	},
+	photos: async(product, args, context) => {
+		return await context.prisma.productImage.findMany({
+			where: {
+				productId: product.id
+			}
+		})
 	}
 }

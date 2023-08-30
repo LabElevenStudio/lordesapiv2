@@ -1,11 +1,12 @@
 import express from 'express'
-import {createServer} from '@graphql-yoga/node'
+import {createYoga, createSchema, createPubSub, pipe, filter} from 'graphql-yoga'
+// import { useCSRFPrevention } from '@graphql-yoga/plugin-csrf-prevention'
 import {PrismaClient} from '@prisma/client'
-// import { makeExecutableSchema } from '@graphql-tools/schema'
 import typeDefs from './typedefs'
-import {resolvers} from './resolvers'
+import { resolvers } from './resolvers'
 import cors from 'cors'
 import jwt from 'jsonwebtoken'
+import multer from 'multer'
 import dotenv from 'dotenv'
 dotenv.config()
 
@@ -13,11 +14,11 @@ const app = express()
 
 const prisma = new PrismaClient()
 
+const pubSub = createPubSub()
+
 function getUser(token) {
-    // console.log('token',token)
     if(token){
         try {
-            // console.log('verify', jwt.verify(token, process.env.JWT_SECRET))
             return jwt.verify(token, process.env.JWT_SECRET)
         } catch (error) {
             throw new Error('Session Invalid')
@@ -25,23 +26,46 @@ function getUser(token) {
     }
 }
 
-
-
-const graphQLServer = createServer({
-    schema:{
-        typeDefs: typeDefs,
-        resolvers: resolvers
+//multer setup
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, './uploads/')
     },
-    context({req}) {
-        const token = req.headers.authorization
-        const user = getUser(token)
-        return{prisma, user}
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + '-' + file.originalname)
     }
 })
 
 
+const upload = multer ({storage})
+
+
+
+
+
+const yoga = createYoga({
+    schema: createSchema({typeDefs, resolvers}),
+    // plugins: [
+    //     useCSRFPrevention({
+    //         requestHeaders: ['x-graphql-yoga-csrf'] // default
+    //     })
+    // ],
+    context({req}) {
+        const token = req.headers.authorization
+        const user = getUser(token)
+        return{prisma, user, pubSub, pipe, filter}
+    }  
+})
+
 app.use(cors())
-app.use('/graphql', graphQLServer)
+// app.use(express.json())
+app.use(upload.single('file'))
+// app.use(yoga.graphqlEndpoint, (req, res, next) => {
+//     req.headers['x-graphql-yoga-csrf'] = req.body.csrfToken
+//     next()
+// })
+app.use(yoga.graphqlEndpoint, yoga)
+
 
 
 app.listen(3000, () => {
