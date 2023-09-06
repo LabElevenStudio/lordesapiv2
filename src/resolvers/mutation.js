@@ -92,6 +92,14 @@ export default{
     signUp: async(parent, {username, email, password, role}, context) => {
         var email = email.trim().toLowerCase();
         var saltRounds = 10;
+
+        //validate password
+        const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
+        if(!passwordPattern.test(password)){
+            throw new Error("Password Doesn't meet criteria")
+        }
+
         var encryptedPassword = await bcrypt.hash(password, saltRounds);
         
         
