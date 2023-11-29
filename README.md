@@ -1,4 +1,4 @@
-# READ ME
+# Lorde's
 
 Make sure to read this before working on the project.
 
