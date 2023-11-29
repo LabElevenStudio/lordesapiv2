@@ -10,6 +10,8 @@ import multer from 'multer'
 import dotenv from 'dotenv'
 dotenv.config()
 
+//TODO: refactor code to typescript.
+
 const app = express()
 
 const prisma = new PrismaClient()
